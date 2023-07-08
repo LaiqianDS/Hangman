@@ -27,10 +27,10 @@ class Hangman:
         self._word = self.get_Word()
         self.display = ['_' for char in self._word]
         self._state = True # Flag variable
-        self.answered = []
-        self.hintcounter = 0
+        self.answered = [] # Answered letters
+        self.hintcounter = 0 # Hints used
         self.hintdisplay = f' (2) hint: -3 lives ({self.hintcounter}/3)'
-        self._definition = ''
+        self._definition = '' 
         self.game()
 
     def get_Word(self):
@@ -47,24 +47,24 @@ class Hangman:
         If it is, shows the letter in the word.
         If not, decreases lives.
         """
-        if guess == str(1):
+        if guess == str(1): # Player used definition
             if self.lives <= 5:
                 print('You can\'t do that. You need more lives')
             else:
                 self.lives -= 5
                 response = requests.get('https://api.dictionaryapi.dev/api/v2/entries/en/' + self._word)
-                if 205 <= len(response.content) <= 208:
+                if 205 <= len(response.content) <= 208: # length of no definition is around these numbers
                     self._definition = 'There is no definition in our dictionary, sorry. We haven\'t taken any lives'
                     self.lives += 5
                 else:
                     try:
                         dic = json.loads(str(response.content)[3:-2])
-                        definition = dic['meanings'][0]['definitions'][0]['definition']
+                        definition = dic['meanings'][0]['definitions'][0]['definition'] # Only takes the first possible meaning
                         self._definition = definition
                     except:
                         print('There is an error, definition disallowed this game.')
                         self._definition = 'Error, there is no definition in our API'
-        elif guess == str(2):
+        elif guess == str(2): # Player used hint
             if self.lives <= 3:
                 print('You can\'t do that. You need more lives')
             else:
