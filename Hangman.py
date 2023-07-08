@@ -16,22 +16,30 @@ To make it simpler, we have set a number of lives instead of drawing
 # Library needed
 import random
 import time
+import json
+import os
+import requests
 
 class Hangman:
 
     def __init__(self, lifepoints):
-        self.lives = lifepoints
+        self.lives = int(lifepoints)
         self._word = self.get_Word()
         self.display = ['_' for char in self._word]
         self._state = True # Flag variable
         self.answered = []
+        self.hintcounter = 0
+        self.hintdisplay = f' (2) hint: -3 lives ({self.hintcounter}/3)'
+        self._definition = ''
         self.game()
 
     def get_Word(self):
         """
         Function that generates a random word of the list "words"
         """
-        return words[random.randint(0,len(words))]
+        response = requests.get('https://random-word-api.herokuapp.com/word')
+        word = str(response.content[2:-2])[2:-1]
+        return word
     
     def guessChar(self, guess):
         """
@@ -39,12 +47,48 @@ class Hangman:
         If it is, shows the letter in the word.
         If not, decreases lives.
         """
-        self.answered.append(guess)
-        if guess not in self._word:
-                self.lives -= 1
-                if self.lives == 0:
-                    self.finishGame()
+        if guess == str(1):
+            if self.lives <= 5:
+                print('You can\'t do that. You need more lives')
+            else:
+                self.lives -= 5
+                response = requests.get('https://api.dictionaryapi.dev/api/v2/entries/en/' + self._word)
+                if 205 <= len(response.content) <= 208:
+                    self._definition = 'There is no definition in our dictionary, sorry. We haven\'t taken any lives'
+                    self.lives += 5
+                else:
+                    try:
+                        dic = json.loads(str(response.content)[3:-2])
+                        definition = dic['meanings'][0]['definitions'][0]['definition']
+                        self._definition = definition
+                    except:
+                        print('There is an error, definition disallowed this game.')
+                        self._definition = 'Error, there is no definition in our API'
+        elif guess == str(2):
+            if self.lives <= 3:
+                print('You can\'t do that. You need more lives')
+            else:
+                self.lives -= 3
+                i = 0
+                while i < len(self.display):
+                    if self.display[i] == '_':
+                        self.display[i] = self._word[i]
+                        i += len(self.display)
+                        self.hintcounter += 1
+                        self.hintdisplay = f' (2) hint: -3 lives ({self.hintcounter}/3)'
+                        if self.hintcounter > 2:
+                            self.answered.append(str(2))
+                            self.hintdisplay = ' No more hints allowed '
+                    if ''.join(self.answered) == self._word:
+                        self.winGame()
+                    i += 1
+        elif guess not in self._word:
+            self.answered.append(guess)
+            self.lives -= 1
+            if self.lives == 0:
+                self.finishGame()
         else:
+            self.answered.append(guess)
             for i in range(len(self._word)):
                 if self._word[i] == guess:
                     self.display[i] = guess
@@ -67,6 +111,11 @@ class Hangman:
         """
         Receives the user's guess and checks
         """
+        if os.name == 'nt':
+            os.system('cls')
+        else: 
+            os.system('clear')
+        
         if len(guess) == 1:
             if guess in self.answered:
                 print('Letter already given, try another one')
@@ -86,6 +135,21 @@ class Hangman:
         print('Congratulations, you\'ve won!')
         print(f'The word was: {self._word}')
         self._state = False
+        try:
+            f = open(history, 'r')
+            record = json.load(f)
+            f.close()
+            record['wins'] += 1
+            print('Current stats:')
+            print(record)
+            f = open(history, 'w')
+            f.write(json.dumps(record))
+            f.close()
+        except FileNotFoundError:
+            record = {'wins': 1, 'losses': 0}
+            fichero = open(history, 'w')
+            fichero.write(json.dumps(record))
+            fichero.close()
 
     def finishGame(self):
         """
@@ -94,6 +158,21 @@ class Hangman:
         print('Sorry! You lost all your lives and lost the game.')
         print(f'The word was: {self._word}')
         self._state = False
+        try:
+            f = open(history)
+            record = json.load(f)
+            f.close()
+            record['losses'] += 1
+            print('Current stats:')
+            print(record)
+            f = open(history, 'w')
+            f.write(json.dumps(record))
+            f.close()
+        except FileNotFoundError:
+            record = {'wins': 0, 'losses': 1}
+            fichero = open(history, 'w')
+            fichero.write(json.dumps(record))
+            fichero.close()
 
     def __repr__(self):
         """
@@ -106,15 +185,24 @@ class Hangman:
     def game(self):
         while self._state == True:
             print(self)
+            print('\n --- Handouts --- ')
+            if self._definition != '':
+                print(f' definition: {self._definition}')
+                print(self.hintdisplay)
+            else:
+                print(' (1) definition: -5 lives ')
+                print(self.hintdisplay)
             guess = input('\nGuess a letter or a word: ')
             self.makeGuess(guess)
-        time.sleep(5)
+        time.sleep(3)
 
-# Words are stored in an text file named 'CommonWords.txt'
-words_file = 'CommonWords.txt'
-lifepoints = 10
 
-with open(words_file, 'r') as f:
-    words = f.read().split() 
-    
+# Words are stored in a web, we get the word with requests module
+history = 'WinRecord.json'
+lifepoints = 0
+while int(lifepoints) <= 0:
+    try:
+        lifepoints = int(input('How many lives do you want to have? (recommended: 10) \n'))
+    except:
+        print('Error. You have to write a number.')
 a = Hangman(lifepoints)
