@@ -10,6 +10,7 @@ Instructions are simple, by simply launching the file, the game will run.
 - Guessing a wrong letter takes 1 life, guessing a wrong word also takes 1 life.
 - You have hints and definitions, both take lives for use.
 - The word is given by an API and the definition by another API, there could be an error that blocks definition handout.
+- After each game, you will see the game record
 
 # Other
 Thanks if you liked this game, share with your friends.
